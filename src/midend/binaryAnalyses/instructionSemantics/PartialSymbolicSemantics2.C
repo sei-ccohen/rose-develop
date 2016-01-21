@@ -26,13 +26,18 @@ Formatter::rename(uint64_t orig_name)
 Sawyer::Optional<BaseSemantics::SValuePtr>
 SValue::createOptionalMerge(const BaseSemantics::SValuePtr &other_, const BaseSemantics::MergerPtr &merger,
                             SMTSolver *solver) const {
+    if (!other_) {
+        return bottom_(get_width());
+        // Or perhaps this...
+        //return Sawyer::Optional<BaseSemantics::SValuePtr>(this->copy());
+    }
     if (must_equal(other_, solver))
         return Sawyer::Nothing();
     return bottom_(get_width());
 }
 
 bool
-SValue::may_equal(const BaseSemantics::SValuePtr &other_, SMTSolver *solver) const 
+SValue::may_equal(const BaseSemantics::SValuePtr &other_, SMTSolver *solver) const
 {
     SValuePtr other = promote(other_);
     if (must_equal(other, solver))
@@ -563,7 +568,7 @@ RiscOperators::writeMemory(const RegisterDescriptor &segreg,
     // PartialSymbolicSemantics assumes that its memory state is capable of storing multi-byte values.
     state->writeMemory(address, value, this, this);
 }
-    
+
 BaseSemantics::SValuePtr
 RiscOperators::readMemory(const RegisterDescriptor &segreg,
                           const BaseSemantics::SValuePtr &address,
@@ -593,7 +598,7 @@ RiscOperators::readMemory(const RegisterDescriptor &segreg,
         }
         delete [] buf;
     }
-    
+
     // PartialSymbolicSemantics assumes that its memory state is capable of storing multi-byte values.
     SValuePtr retval = SValue::promote(state->readMemory(address, dflt, this, this));
     return retval;

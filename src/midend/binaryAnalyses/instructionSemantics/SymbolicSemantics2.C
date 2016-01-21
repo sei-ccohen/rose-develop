@@ -36,6 +36,11 @@ SValue::isBottom() const {
 Sawyer::Optional<BaseSemantics::SValuePtr>
 SValue::createOptionalMerge(const BaseSemantics::SValuePtr &other_, const BaseSemantics::MergerPtr &merger_,
                             SMTSolver *solver) const {
+    if (!other_) {
+        return bottom_(get_width());
+        // Or perhaps this...
+        //return Sawyer::Optional<BaseSemantics::SValuePtr>(this->copy());
+    }
     SValuePtr other = SValue::promote(other_);
     ASSERT_require(get_width() == other->get_width());
     MergerPtr merger = merger_.dynamicCast<Merger>();
@@ -132,7 +137,7 @@ SValue::set_defining_instructions(SgAsmInstruction *insn)
 }
 
 bool
-SValue::may_equal(const BaseSemantics::SValuePtr &other_, SMTSolver *solver) const 
+SValue::may_equal(const BaseSemantics::SValuePtr &other_, SMTSolver *solver) const
 {
     SValuePtr other = SValue::promote(other_);
     ASSERT_require(get_width()==other->get_width());
@@ -190,7 +195,7 @@ SValue::print(std::ostream &stream, BaseSemantics::Formatter &formatter_) const
 
     stream <<(*expr + expr_formatter) <<closing;
 }
-    
+
 
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -379,7 +384,7 @@ RiscOperators::or_(const BaseSemantics::SValuePtr &a_, const BaseSemantics::SVal
     ASSERT_require(a->get_width()==b->get_width());
     if (a->isBottom() || b->isBottom())
         return filterResult(bottom_(a->get_width()));
-    
+
     SValuePtr retval = svalue_expr(SymbolicExpr::makeOr(a->get_expression(), b->get_expression()));
 
     switch (computingDefiners_) {
@@ -427,7 +432,7 @@ RiscOperators::xor_(const BaseSemantics::SValuePtr &a_, const BaseSemantics::SVa
     }
     return filterResult(retval);
 }
-    
+
 BaseSemantics::SValuePtr
 RiscOperators::invert(const BaseSemantics::SValuePtr &a_)
 {
@@ -990,7 +995,7 @@ RiscOperators::signExtend(const BaseSemantics::SValuePtr &a_, size_t new_width)
 }
 
 BaseSemantics::SValuePtr
-RiscOperators::readRegister(const RegisterDescriptor &reg) 
+RiscOperators::readRegister(const RegisterDescriptor &reg)
 {
     PartialDisableUsedef du(this);
     BaseSemantics::SValuePtr result = BaseSemantics::RiscOperators::readRegister(reg);

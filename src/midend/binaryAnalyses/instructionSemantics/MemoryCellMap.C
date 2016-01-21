@@ -50,6 +50,7 @@ MemoryCellMap::merge(const MemoryStatePtr &other_, RiscOperators *addrOps, RiscO
     MemoryCellMapPtr other = boost::dynamic_pointer_cast<MemoryCellMap>(other_);
     ASSERT_not_null(other);
     bool changed = false;
+    std::set<CellKey> processed;
 
     BOOST_FOREACH (const MemoryCellPtr &otherCell, other->cells.values()) {
         bool thisCellChanged = false;
@@ -82,10 +83,40 @@ MemoryCellMap::merge(const MemoryStatePtr &other_, RiscOperators *addrOps, RiscO
                 changed = true;
             }
         }
+        else {
+            // If the cell is in the other memory state but is not in this memory state, merge it with NULL.
+            SValuePtr newValue = otherValue->createOptionalMerge(SValuePtr(), merger(), valOps->get_solver()).orDefault();
+            if (newValue) {
+                // Write the merged cell into this memory state.
+                writeMemory(otherCell->get_address(), newValue, addrOps, valOps);
+                latestWrittenCell_->setWriters(otherCell->getWriters());
+                latestWrittenCell_->ioProperties() = otherCell->ioProperties();
+                changed = true;
+            }
+        }
+        processed.insert(key);
     }
+
+    // For each of the cells in this memory state...
+    BOOST_FOREACH (const MemoryCellPtr &thisCell, allCells()) {
+        CellKey key = generateCellKey(thisCell->get_address());
+        // If we've already processed this key, we're done.
+        if (processed.find(key) != processed.end()) continue;
+        // This cell must exist only in this memory state.  Merge it with NULL.
+        SValuePtr thisValue = thisCell->get_value();
+        SValuePtr newValue = thisValue->createOptionalMerge(BaseSValuePtr(), merger(), valOps->get_solver()).orDefault();
+        if (newValue) {
+            // Write the merged cell into this memory state.
+            writeMemory(thisCell->get_address(), newValue, addrOps, valOps);
+            latestWrittenCell_->setWriters(thisCell->getWriters());
+            latestWrittenCell_->ioProperties() = thisCell->ioProperties();
+            changed = true;
+        }
+    }
+
     return changed;
 }
-    
+
 void
 MemoryCellMap::print(std::ostream &out, Formatter &fmt) const {
     BOOST_FOREACH (const MemoryCellPtr &cell, cells.values())
@@ -101,7 +132,7 @@ MemoryCellMap::traverse(MemoryCell::Visitor &visitor) {
     }
     cells = newMap;
 }
-    
+
 std::vector<MemoryCellPtr>
 MemoryCellMap::matchingCells(const MemoryCell::Predicate &p) const {
     std::vector<MemoryCellPtr> retval;
